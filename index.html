@@ -1,0 +1,989 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>স্ক্রিপ্ট স্প্লিটার v3.1</title>
+<!-- JSZip: Real ZIP export -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"
+  onerror="window._jsZipFailed=true"></script>
+<!-- jsPDF: PDF export (pure JS, no server needed) -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"
+  onerror="window._jsPdfFailed=true"></script>
+  
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#6c5ce7">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+
+:root {
+  --bg:#0d0d14;--surface:#13131f;--surface2:#1a1a2e;--border:#2a2a42;
+  --accent:#7c6af7;--ag:rgba(124,106,247,.18);--al:#a594fa;
+  --text:#e8e6ff;--muted:#7a78a0;--dim:#4a4870;
+  --green:#4ade80;--red:#f87171;--yellow:#fbbf24;--blue:#60a5fa;
+}
+.light{
+  --bg:#f5f4ff;--surface:#ffffff;--surface2:#ededff;--border:#d4d0f5;
+  --accent:#6c5ce7;--ag:rgba(108,92,231,.1);--al:#6c5ce7;
+  --text:#1a1830;--muted:#6b6890;--dim:#aea9d0;
+  --green:#16a34a;--red:#dc2626;--yellow:#d97706;--blue:#2563eb;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;min-height:100vh;padding:32px 16px 100px;transition:background .3s,color .3s}
+
+/* HEADER */
+.hdr{text-align:center;margin-bottom:36px;position:relative}
+.badge{display:inline-block;background:var(--ag);border:1px solid rgba(124,106,247,.4);color:var(--al);font-size:11px;font-weight:600;letter-spacing:2px;text-transform:uppercase;padding:4px 14px;border-radius:20px;margin-bottom:12px}
+h1{font-size:clamp(24px,5vw,38px);font-weight:700;background:linear-gradient(135deg,var(--text) 30%,var(--al));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;margin-bottom:8px}
+.sub{color:var(--muted);font-size:14px}
+.theme-btn{position:absolute;top:0;right:0;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--muted);font-size:18px;width:40px;height:40px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .2s}
+.theme-btn:hover{border-color:var(--accent);color:var(--al)}
+
+/* TOOLBAR */
+.toolbar{max-width:880px;margin:0 auto 12px;display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.tool-btn{background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--muted);font-size:12px;font-weight:500;padding:7px 14px;cursor:pointer;transition:all .15s;display:flex;align-items:center;gap:5px}
+.tool-btn:hover{border-color:var(--accent);color:var(--al);background:var(--ag)}
+.tool-btn.active{border-color:var(--accent);color:var(--al);background:var(--ag)}
+.spacer{flex:1}
+
+/* SEARCH BAR */
+.search-wrap{max-width:880px;margin:0 auto 12px;display:none;gap:8px;align-items:center}
+.search-wrap.show{display:flex}
+.search-wrap input{flex:1;background:var(--surface);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:13px;padding:9px 14px;outline:none;transition:border-color .2s}
+.search-wrap input:focus{border-color:var(--accent)}
+.search-wrap input::placeholder{color:var(--dim)}
+.replace-inp{flex:1;background:var(--surface);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:13px;padding:9px 14px;outline:none}
+.replace-inp:focus{border-color:var(--green)}
+.sr-btn{background:var(--ag);border:1px solid var(--accent);border-radius:8px;color:var(--al);font-size:12px;font-weight:600;padding:9px 16px;cursor:pointer;white-space:nowrap}
+.search-count{font-size:11px;color:var(--muted);white-space:nowrap;font-family:'JetBrains Mono',monospace;min-width:60px}
+
+/* CARD */
+.card{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:24px;max-width:880px;margin:0 auto 20px}
+.card-label{font-size:11px;font-weight:600;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);margin-bottom:10px}
+
+/* DROPZONE */
+.dropzone{border:2px dashed var(--border);border-radius:10px;padding:18px;text-align:center;cursor:pointer;transition:all .2s;margin-bottom:12px;font-size:13px;color:var(--dim)}
+.dropzone:hover,.dropzone.drag{border-color:var(--accent);background:var(--ag);color:var(--al)}
+
+/* TEXTAREA with line count overlay */
+.ta-wrap{position:relative}
+textarea{width:100%;background:var(--bg);border:1px solid var(--border);border-radius:10px;color:var(--text);font-family:'Inter',sans-serif;font-size:13.5px;line-height:1.7;padding:14px 16px;resize:vertical;min-height:180px;outline:none;transition:border-color .2s}
+textarea:focus{border-color:var(--accent)}
+textarea::placeholder{color:var(--dim)}
+
+/* STATS */
+.stats{display:flex;gap:16px;flex-wrap:wrap;margin-top:10px}
+.stat{font-size:12px;color:var(--muted);display:flex;align-items:center;gap:5px}
+.stat strong{color:var(--al);font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:600}
+
+/* CLEANER PILLS */
+.clean-section{margin-top:14px}
+.clean-label{font-size:10px;font-weight:600;letter-spacing:1px;text-transform:uppercase;color:var(--dim);margin-bottom:8px}
+.clean-pills{display:flex;gap:7px;flex-wrap:wrap}
+.pill{background:var(--surface2);border:1px solid var(--border);border-radius:20px;color:var(--muted);font-size:11px;padding:4px 12px;cursor:pointer;transition:all .15s}
+.pill:hover{border-color:var(--accent);color:var(--al)}
+
+/* CONTROLS */
+.controls{display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap;max-width:880px;margin:0 auto 12px}
+.cg{flex:1;min-width:160px}
+.cg label{display:block;font-size:11px;font-weight:500;color:var(--muted);margin-bottom:7px;letter-spacing:.5px}
+.inp-w{position:relative}
+.inp-w input[type=number]{width:100%;background:var(--surface);border:1px solid var(--border);border-radius:10px;color:var(--text);font-family:'JetBrains Mono',monospace;font-size:15px;font-weight:500;padding:11px 48px 11px 14px;outline:none;transition:border-color .2s;-moz-appearance:textfield}
+.inp-w input::-webkit-inner-spin-button{-webkit-appearance:none}
+.inp-w input:focus{border-color:var(--accent)}
+.unit{position:absolute;right:12px;top:50%;transform:translateY(-50%);font-size:10px;color:var(--dim);pointer-events:none;letter-spacing:.5px}
+.inp-w select{width:100%;background:var(--surface);border:1px solid var(--border);border-radius:10px;color:var(--text);font-family:'Inter',monospace;font-size:13px;padding:11px 14px;outline:none;cursor:pointer;transition:border-color .2s;appearance:none;-webkit-appearance:none}
+.inp-w select:focus{border-color:var(--accent)}
+
+/* PRESETS */
+.presets{display:flex;gap:7px;flex-wrap:wrap;max-width:880px;margin:-4px auto 20px;align-items:center}
+.plabel{font-size:11px;color:var(--dim);margin-right:2px}
+.pb{background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--muted);font-size:11px;font-weight:500;padding:5px 11px;cursor:pointer;transition:all .15s;font-family:'JetBrains Mono',monospace}
+.pb:hover{background:var(--ag);border-color:var(--accent);color:var(--al)}
+.pb.active{background:var(--ag);border-color:var(--accent);color:var(--al)}
+
+/* ELEVENLABS WARNING */
+.el-warn{background:rgba(251,191,36,.08);border:1px solid rgba(251,191,36,.35);border-radius:10px;padding:11px 15px;font-size:12.5px;color:var(--yellow);max-width:880px;margin:0 auto 14px;display:none}
+.el-warn.show{display:block}
+
+/* SPLIT BTN — sticky on mobile */
+.split-sticky{max-width:880px;margin:0 auto}
+.btn-split{width:100%;background:linear-gradient(135deg,#6c5ce7,#a594fa);border:none;border-radius:10px;color:#fff;font-size:15px;font-weight:600;padding:13px 30px;cursor:pointer;transition:opacity .15s,transform .1s;box-shadow:0 4px 20px rgba(108,92,231,.35)}
+.btn-split:hover{opacity:.87;transform:translateY(-1px)}
+.btn-split:active{transform:translateY(0)}
+@media(max-width:600px){
+  .split-sticky{position:sticky;bottom:15px;z-index:100;padding:0 4px}
+  .btn-split{box-shadow:0 4px 24px rgba(108,92,231,.55)}
+  .controls{flex-direction:column}
+  body{padding:20px 12px 100px}
+}
+
+/* OUTPUT HEADER */
+.out-hdr{max-width:880px;margin:0 auto 12px;display:none;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px}
+.out-title{font-size:12px;font-weight:600;color:var(--muted);letter-spacing:1px;text-transform:uppercase}
+.out-actions{display:flex;gap:8px;flex-wrap:wrap}
+.act-btn{background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--muted);font-size:12px;font-weight:500;padding:7px 14px;cursor:pointer;transition:all .15s}
+.act-btn:hover{border-color:var(--accent);color:var(--al)}
+
+/* PROGRESS */
+.prog-wrap{max-width:880px;margin:0 auto 14px;background:var(--surface2);border-radius:8px;height:6px;overflow:hidden;display:none}
+.prog-wrap.show{display:block}
+.prog-bar{height:100%;background:linear-gradient(90deg,#6c5ce7,#a594fa);border-radius:8px;width:0%;transition:width .15s ease}
+
+/* PARTS */
+.parts{max-width:880px;margin:0 auto;display:flex;flex-direction:column;gap:14px}
+.part-card{background:var(--surface);border:1px solid var(--border);border-radius:14px;overflow:hidden;animation:fadeUp .25s ease forwards;opacity:0}
+@keyframes fadeUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+.part-head{display:flex;align-items:center;justify-content:space-between;padding:11px 15px;background:var(--surface2);border-bottom:1px solid var(--border);flex-wrap:wrap;gap:8px}
+.part-meta{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.pnum{background:linear-gradient(135deg,#6c5ce7,#a594fa);color:#fff;font-size:11px;font-weight:700;padding:3px 10px;border-radius:20px}
+.pmeta-text{font-size:11px;color:var(--dim);font-family:'JetBrains Mono',monospace;line-height:1.5}
+.pmeta-text span{color:var(--muted)}
+.pactions{display:flex;gap:6px;flex-wrap:wrap}
+.cbtn{display:flex;align-items:center;gap:5px;background:transparent;border:1px solid var(--border);border-radius:7px;color:var(--muted);font-size:11px;font-weight:500;padding:5px 12px;cursor:pointer;transition:all .15s;font-family:'Inter',sans-serif;white-space:nowrap}
+.cbtn:hover{background:var(--ag);border-color:var(--accent);color:var(--al)}
+.cbtn.copied{background:rgba(74,222,128,.12);border-color:var(--green);color:var(--green)}
+.cbtn.dled{background:rgba(74,222,128,.12);border-color:var(--green);color:var(--green)}
+.part-body{padding:15px;font-size:13px;line-height:1.75;color:#c8c6ee;white-space:pre-wrap;word-break:break-word;max-height:240px;overflow-y:auto;scrollbar-width:thin;scrollbar-color:var(--border) transparent}
+.light .part-body{color:#2d2a5e}
+.part-body::-webkit-scrollbar{width:4px}
+.part-body::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
+.hl{background:rgba(251,191,36,.35);border-radius:2px}
+
+/* EMPTY */
+.empty{text-align:center;padding:50px 20px;color:var(--dim);max-width:880px;margin:0 auto}
+.empty-ico{font-size:38px;margin-bottom:12px;opacity:.5}
+.empty p{font-size:13px;line-height:1.6}
+
+/* WARN BOX */
+.warn{background:rgba(248,113,113,.1);border:1px solid rgba(248,113,113,.35);border-radius:10px;padding:11px 15px;font-size:12.5px;color:var(--red);max-width:880px;margin:0 auto 14px;display:none}
+.warn.show{display:block}
+
+/* UNDO BAR */
+.undo-bar{max-width:880px;margin:0 auto 10px;display:none;align-items:center;gap:10px;font-size:12px;color:var(--muted)}
+.undo-bar.show{display:flex}
+.undo-btn{background:var(--ag);border:1px solid var(--accent);border-radius:6px;color:var(--al);font-size:11px;font-weight:600;padding:4px 12px;cursor:pointer}
+
+/* TOAST NOTIFICATION */
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(100px);background:#1e1e30;border:1px solid var(--accent);border-radius:10px;color:var(--al);font-size:13px;font-weight:500;padding:10px 20px;z-index:9999;transition:transform .25s ease,opacity .25s ease;opacity:0;pointer-events:none;white-space:nowrap}
+.toast.show{transform:translateX(-50%) translateY(0);opacity:1}
+.light .toast{background:#fff;color:var(--accent);border-color:var(--accent)}
+</style>
+</head>
+<body>
+
+<!-- TOAST -->
+<div class="toast" id="toast"></div>
+
+<div class="hdr">
+  <div class="badge">ElevenLabs Tool · v3.1</div>
+  <h1>স্ক্রিপ্ট স্প্লিটার</h1>
+  <p class="sub">বড় স্ক্রিপ্টকে স্মার্টভাবে ভাগ করো — ZIP · TXT · DOCX · PDF · Markdown</p>
+  <button class="theme-btn" onclick="toggleTheme()" title="Dark/Light">🌙</button>
+</div>
+
+<!-- TOOLBAR: Cleaner tools -->
+<div class="toolbar" style="max-width:880px;margin:0 auto 14px">
+  <button class="tool-btn" onclick="cleanExtra()">🧹 Extra Space</button>
+  <button class="tool-btn" onclick="cleanEmoji()">😶 Emoji সরাও</button>
+  <button class="tool-btn" onclick="cleanHTML()">🏷️ HTML সরাও</button>
+  <button class="tool-btn" onclick="cleanMarkdown()">📝 Markdown সরাও</button>
+  <button class="tool-btn" onclick="cleanDupLines()">♊ Duplicate Line</button>
+  <button class="tool-btn" onclick="cleanEmptyLines()">⬜ Empty Line</button>
+  <button class="tool-btn" onclick="cleanTrimLines()">✂ Trim Line</button>
+  <div class="spacer"></div>
+  <button class="tool-btn" id="srBtn" onclick="toggleSearch()">🔍 খোঁজো / বদলাও</button>
+</div>
+
+<!-- SEARCH/REPLACE -->
+<div class="search-wrap" id="srWrap">
+  <input type="text" id="searchInp" placeholder="খোঁজো…" oninput="doSearch()">
+  <span class="search-count" id="searchCount"></span>
+  <input type="text" class="replace-inp" id="replaceInp" placeholder="বদলাও…">
+  <button class="sr-btn" onclick="doReplace()">বদলাও</button>
+  <button class="sr-btn" style="background:transparent;border-color:var(--dim);color:var(--muted)" onclick="toggleSearch()">✕</button>
+</div>
+
+<!-- UNDO BAR -->
+<div class="undo-bar" id="undoBar">
+  <span id="undoMsg">পরিবর্তন হয়েছে।</span>
+  <button class="undo-btn" onclick="undoChange()" title="Ctrl+Z">↩ Undo</button>
+  <button class="undo-btn" onclick="redoChange()" title="Ctrl+Y">↪ Redo</button>
+</div>
+
+<!-- INPUT CARD -->
+<div class="card">
+  <div class="card-label">স্ক্রিপ্ট পেস্ট করো বা ফাইল ড্র্যাগ করো</div>
+  <div class="dropzone" id="dropzone" onclick="document.getElementById('fileInput').click()">
+    📂 .txt বা .md ফাইল এখানে ড্র্যাগ করো, অথবা ক্লিক করো
+  </div>
+  <input type="file" id="fileInput" accept=".txt,.md" style="display:none" onchange="loadFile(event)">
+  <div class="ta-wrap">
+    <textarea id="inp" placeholder="এখানে স্ক্রিপ্ট পেস্ট করো…"></textarea>
+  </div>
+  <div class="stats">
+    <div class="stat">ক্যারেক্টার: <strong id="sChars">0</strong></div>
+    <div class="stat">শব্দ: <strong id="sWords">0</strong></div>
+    <div class="stat">লাইন: <strong id="sLines">0</strong></div>
+    <div class="stat">পর্ব হবে: <strong id="sEst">—</strong></div>
+  </div>
+</div>
+
+<!-- CONTROLS -->
+<div class="controls">
+  <div class="cg">
+    <label>প্রতি পর্বে ক্যারেক্টার</label>
+    <div class="inp-w">
+      <input type="number" id="chunkSize" value="5000" min="100" max="200000" oninput="onChunkInput()">
+      <span class="unit">chars</span>
+    </div>
+  </div>
+  <div class="cg" style="min-width:140px;max-width:180px">
+    <label>Voice Speed</label>
+    <div class="inp-w">
+      <select id="voiceSpeed" onchange="rerenderIfParts()">
+        <option value="slow">🐢 Slow (11 c/s)</option>
+        <option value="normal" selected>🚶 Normal (14 c/s)</option>
+        <option value="fast">🚀 Fast (18 c/s)</option>
+      </select>
+    </div>
+  </div>
+</div>
+
+<!-- PRESETS -->
+<div class="presets">
+  <span class="plabel">দ্রুত সেট:</span>
+  <button class="pb" id="pb2500" onclick="setChunk(2500)">2,500</button>
+  <button class="pb active" id="pb5000" onclick="setChunk(5000)">5,000 ★</button>
+  <button class="pb" id="pb7500" onclick="setChunk(7500)">7,500</button>
+  <button class="pb" id="pb10000" onclick="setChunk(10000)">10,000</button>
+  <button class="pb" id="pb15000" onclick="setChunk(15000)">15,000</button>
+</div>
+
+<!-- ELEVENLABS WARNING -->
+<div class="el-warn" id="elWarn">
+  ⚠️ ElevenLabs-এর ফ্রি প্ল্যানে সীমা ৫,০০০ ক্যারেক্টার। তুমি <strong id="elWarnNum"></strong> দিয়েছ — এটা বেশি হলে কিছু পর্ব রিজেক্ট হতে পারে।
+</div>
+
+<!-- WARN -->
+<div class="warn" id="warnBox"></div>
+
+<!-- PROGRESS -->
+<div class="prog-wrap" id="prog"><div class="prog-bar" id="progBar"></div></div>
+
+<!-- OUTPUT HEADER -->
+<div class="out-hdr" id="outHdr">
+  <div class="out-title" id="outTitle"></div>
+  <div class="out-actions">
+    <button class="act-btn" onclick="copyAll()">📋 সব কপি</button>
+    <button class="act-btn" onclick="downloadZip()">📦 ZIP</button>
+    <button class="act-btn" onclick="downloadTxt()">📄 TXT</button>
+    <button class="act-btn" onclick="downloadDocx()">📘 DOCX</button>
+    <button class="act-btn" onclick="downloadPdf()">🖨️ PDF</button>
+    <button class="act-btn" onclick="downloadMarkdown()">📝 Markdown</button>
+  </div>
+</div>
+
+<!-- PARTS -->
+<div class="parts" id="parts">
+  <div class="empty">
+    <div class="empty-ico">✂️</div>
+    <p>স্ক্রিপ্ট পেস্ট করো এবং<br>"ভাগ করো" চাপো</p>
+  </div>
+</div>
+
+<!-- STICKY SPLIT BUTTON -->
+<div class="split-sticky" style="margin-top:20px">
+  <button class="btn-split" onclick="splitScript()">✂ ভাগ করো &nbsp;<kbd style="background:rgba(255,255,255,.15);border-radius:4px;font-size:11px;padding:1px 6px;font-family:monospace">Ctrl+Enter</kbd></button>
+</div>
+
+<script>
+// ─── STATE ─────────────────────────────────────────────────────────────────
+let parts = [];
+let undoStack = [], redoStack = [];
+let searchActive = false;
+let isDark = true;
+let inputTimer = null;
+
+// ─── LOCAL STORAGE ──────────────────────────────────────────────────────────
+window.addEventListener('load', () => {
+  const saved = localStorage.getItem('ss_script');
+  if (saved) { document.getElementById('inp').value = saved; updateStats(); }
+  const savedTheme = localStorage.getItem('ss_theme');
+  if (savedTheme === 'light') { isDark = false; document.body.classList.add('light'); document.querySelector('.theme-btn').textContent = '☀️'; }
+  // init undo with current state
+  if (document.getElementById('inp').value) pushHistory(document.getElementById('inp').value);
+
+  // Listen for typing — debounced undo push
+  document.getElementById('inp').addEventListener('input', () => {
+    updateStats();
+    localStorage.setItem('ss_script', document.getElementById('inp').value);
+    clearTimeout(inputTimer);
+    inputTimer = setTimeout(() => {
+      pushHistory(document.getElementById('inp').value);
+    }, 800); // push to history 800ms after user stops typing
+  });
+});
+
+// ─── STATS ───────────────────────────────────────────────────────────────────
+function updateStats() {
+  const t = document.getElementById('inp').value;
+  const chars = t.length;
+  const words = t.trim() ? t.trim().split(/\s+/).length : 0;
+  const lines = t.split('\n').length;
+  const size = parseInt(document.getElementById('chunkSize').value) || 5000;
+  document.getElementById('sChars').textContent = fmt(chars);
+  document.getElementById('sWords').textContent = fmt(words);
+  document.getElementById('sLines').textContent = fmt(lines);
+  document.getElementById('sEst').textContent = chars ? Math.ceil(chars / size) : '—';
+  const elw = document.getElementById('elWarn');
+  if (size > 5000) {
+    document.getElementById('elWarnNum').textContent = fmt(size) + ' ক্যারেক্টার';
+    elw.classList.add('show');
+  } else { elw.classList.remove('show'); }
+}
+
+function fmt(n) { return n.toLocaleString('bn'); }
+
+function setChunk(v) {
+  document.getElementById('chunkSize').value = v;
+  // update preset button highlights
+  [2500,5000,7500,10000,15000].forEach(n => {
+    const btn = document.getElementById('pb'+n);
+    if (btn) btn.classList.toggle('active', n === v);
+  });
+  updateStats();
+}
+
+function onChunkInput() {
+  // clear preset highlights
+  [2500,5000,7500,10000,15000].forEach(n => {
+    const btn = document.getElementById('pb'+n);
+    if (btn) btn.classList.remove('active');
+  });
+  updateStats();
+}
+
+// ─── UNDO / REDO (PROPER STACK) ─────────────────────────────────────────────
+function pushHistory(val) {
+  // Don't push duplicates
+  if (undoStack.length && undoStack[undoStack.length-1] === val) return;
+  undoStack.push(val);
+  redoStack = []; // clear redo on new action
+  if (undoStack.length > 100) undoStack.shift(); // cap stack
+  document.getElementById('undoBar').classList.toggle('show', undoStack.length > 1);
+}
+
+function undoChange() {
+  if (undoStack.length <= 1) return;
+  redoStack.push(undoStack.pop());
+  const prev = undoStack[undoStack.length-1];
+  const ta = document.getElementById('inp');
+  ta.value = prev;
+  updateStats();
+  localStorage.setItem('ss_script', prev);
+  document.getElementById('undoMsg').textContent = 'Undo করা হয়েছে।';
+  document.getElementById('undoBar').classList.toggle('show', undoStack.length > 1);
+}
+
+function redoChange() {
+  if (!redoStack.length) return;
+  const next = redoStack.pop();
+  undoStack.push(next);
+  const ta = document.getElementById('inp');
+  ta.value = next;
+  updateStats();
+  localStorage.setItem('ss_script', next);
+  document.getElementById('undoMsg').textContent = 'Redo করা হয়েছে।';
+}
+
+// ─── CLEANERS ────────────────────────────────────────────────────────────────
+function pushAndSet(newVal, msg) {
+  pushHistory(newVal);
+  document.getElementById('inp').value = newVal;
+  document.getElementById('undoMsg').textContent = msg + ' — Undo করতে পারো।';
+  document.getElementById('undoBar').classList.add('show');
+  updateStats();
+  localStorage.setItem('ss_script', newVal);
+}
+
+function cleanExtra()    { pushAndSet(document.getElementById('inp').value.replace(/[ \t]+/g,' ').replace(/\n{3,}/g,'\n\n').trim(), 'Extra space সরানো হয়েছে'); }
+function cleanEmoji()    { pushAndSet(document.getElementById('inp').value.replace(/[\u{1F000}-\u{1FFFF}\u{2600}-\u{27BF}\u{FE00}-\u{FE0F}\u{1FA00}-\u{1FA9F}]/gu,'').trim(), 'Emoji সরানো হয়েছে'); }
+function cleanHTML()     { pushAndSet(document.getElementById('inp').value.replace(/<[^>]+>/g,'').trim(), 'HTML ট্যাগ সরানো হয়েছে'); }
+function cleanMarkdown() { pushAndSet(document.getElementById('inp').value
+    .replace(/#{1,6}\s+/g,'').replace(/(\*\*|__)(.*?)\1/g,'$2')
+    .replace(/(\*|_)(.*?)\1/g,'$2').replace(/`{1,3}[^`]*`{1,3}/g,'')
+    .replace(/^\s*[-*+]\s/gm,'').replace(/\[([^\]]+)\]\([^)]+\)/g,'$1')
+    .replace(/^\s*\d+\.\s/gm,'').trim(), 'Markdown সরানো হয়েছে'); }
+function cleanDupLines() {
+  const seen = new Set();
+  const result = document.getElementById('inp').value.split('\n').filter(l => {
+    const k = l.trim(); if (seen.has(k)) return false; seen.add(k); return true;
+  }).join('\n');
+  pushAndSet(result, 'Duplicate line সরানো হয়েছে');
+}
+function cleanEmptyLines() { pushAndSet(document.getElementById('inp').value.replace(/^\s*[\r\n]/gm,'').replace(/\n{2,}/g,'\n\n').trim(), 'Empty line সরানো হয়েছে'); }
+function cleanTrimLines() { pushAndSet(document.getElementById('inp').value.split('\n').map(l=>l.trim()).join('\n').trim(), 'Line trim করা হয়েছে'); }
+
+// ─── SEARCH / REPLACE ────────────────────────────────────────────────────────
+function toggleSearch() {
+  searchActive = !searchActive;
+  document.getElementById('srWrap').classList.toggle('show', searchActive);
+  document.getElementById('srBtn').classList.toggle('active', searchActive);
+  if (searchActive) document.getElementById('searchInp').focus();
+  else { document.getElementById('searchCount').textContent = ''; }
+}
+
+function doSearch() {
+  const q = document.getElementById('searchInp').value;
+  const countEl = document.getElementById('searchCount');
+  if (!q || !q.trim()) { countEl.textContent = ''; if (parts.length) renderParts(); return; }
+  const t = document.getElementById('inp').value;
+  let matches = 0;
+  try {
+    const safeQ = q.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
+    matches = (t.match(new RegExp(safeQ, 'gi')) || []).length;
+  } catch(e) { countEl.textContent = '⚠️ regex'; return; }
+  countEl.textContent = matches + ' টি';
+  countEl.style.color = matches > 0 ? 'var(--green)' : 'var(--red)';
+  if (parts.length) renderParts();
+}
+
+function doReplace() {
+  const q = document.getElementById('searchInp').value;
+  const r = document.getElementById('replaceInp').value;
+  if (!q) return;
+  const old = document.getElementById('inp').value;
+  const newVal = old.replace(new RegExp(q.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'), 'gi'), r);
+  if (newVal === old) { showToast('⚠️ কোনো মিল পাওয়া যায়নি'); return; }
+  pushAndSet(newVal, `"${q}" → "${r}" বদলানো হয়েছে`);
+  doSearch();
+}
+
+// ─── FILE UPLOAD ──────────────────────────────────────────────────────────────
+const dz = document.getElementById('dropzone');
+dz.addEventListener('dragover', e => { e.preventDefault(); dz.classList.add('drag'); });
+dz.addEventListener('dragleave', () => dz.classList.remove('drag'));
+dz.addEventListener('drop', e => { e.preventDefault(); dz.classList.remove('drag'); const f = e.dataTransfer.files[0]; if (f) readFile(f); });
+function loadFile(e) { const f = e.target.files[0]; if (f) readFile(f); }
+function readFile(f) {
+  const r = new FileReader();
+  r.onload = ev => {
+    const val = ev.target.result;
+    document.getElementById('inp').value = val;
+    pushHistory(val);
+    updateStats();
+    localStorage.setItem('ss_script', val);
+    showToast('📂 ফাইল লোড হয়েছে: ' + f.name);
+  };
+  r.readAsText(f, 'UTF-8');
+}
+
+// ─── SMART SPLIT (Multi-Priority) ─────────────────────────────────────────────
+function smartSplit(text, max) {
+  const chunks = [];
+  let rem = text.trim();
+
+  while (rem.length > 0) {
+    if (rem.length <= max) { chunks.push(rem.trim()); break; }
+    let cut = max;
+    const win = rem.substring(0, max + 1); // +1 for boundary check
+
+    // Priority 1: Paragraph break (\n\n)
+    const pp = win.lastIndexOf('\n\n');
+    if (pp > max * 0.35) { cut = pp; }
+    else {
+      // Priority 2: Heading (# or ## at start of line)
+      const headingMatch = /\n(?=#{1,3}\s)/g;
+      let hm, hlast = -1;
+      const wSub = win.substring(0, max);
+      while ((hm = headingMatch.exec(wSub)) !== null) hlast = hm.index;
+      if (hlast > max * 0.35) { cut = hlast; }
+      else {
+        // Priority 3: Dialogue break (line starting with "—" or """)
+        const dlgMatch = /\n(?=[""—])/g;
+        let dm, dlast = -1;
+        while ((dm = dlgMatch.exec(wSub)) !== null) dlast = dm.index;
+        if (dlast > max * 0.35) { cut = dlast; }
+        else {
+          // Priority 4: Single newline
+          const nl = wSub.lastIndexOf('\n');
+          if (nl > max * 0.35) { cut = nl; }
+          else {
+            // Priority 5: Bangla daari / sentence end (।!?.)
+            const sentRe = /[।!?\.]["']?\s/g;
+            let sm, slast = -1;
+            while ((sm = sentRe.exec(wSub)) !== null) slast = sm.index + sm[0].length - 1;
+            if (slast > max * 0.3) { cut = slast + 1; }
+            else {
+              // Priority 6: Comma / semicolon
+              const commaRe = /[,;]\s/g;
+              let cm, clast = -1;
+              while ((cm = commaRe.exec(wSub)) !== null) clast = cm.index + 1;
+              if (clast > max * 0.3) { cut = clast + 1; }
+              else {
+                // Priority 7: Space
+                const sp = wSub.lastIndexOf(' ');
+                if (sp > max * 0.3) { cut = sp; }
+                // Priority 8: Force cut at max
+              }
+            }
+          }
+        }
+      }
+    }
+
+    chunks.push(rem.substring(0, cut).trim());
+    rem = rem.substring(cut).trim();
+  }
+  return chunks;
+}
+
+// ─── VOICE TIME ───────────────────────────────────────────────────────────────
+function voiceTime(chars) {
+  const speed = document.getElementById('voiceSpeed').value;
+  const cps = speed === 'slow' ? 11 : speed === 'fast' ? 18 : 14;
+  const secs = Math.round(chars / cps);
+  const m = Math.floor(secs / 60), s = secs % 60;
+  return `${m}মি ${String(s).padStart(2,'0')}সে`;
+}
+
+function rerenderIfParts() {
+  if (parts.length) renderParts();
+}
+
+// ─── SPLIT (Real Progress) ────────────────────────────────────────────────────
+function splitScript() {
+  const text = document.getElementById('inp').value.trim();
+  const max = parseInt(document.getElementById('chunkSize').value);
+  const wb = document.getElementById('warnBox');
+  wb.classList.remove('show');
+  if (!text) { wb.textContent = '⚠️ স্ক্রিপ্ট খালি আছে!'; wb.classList.add('show'); return; }
+  if (!max || max < 100) { wb.textContent = '⚠️ ক্যারেক্টার সংখ্যা কমপক্ষে ১০০ হতে হবে।'; wb.classList.add('show'); return; }
+
+  const pg = document.getElementById('prog');
+  const pb = document.getElementById('progBar');
+  pg.classList.add('show');
+  pb.style.width = '0%';
+
+  // Real progress: split in chunks and yield to browser
+  setTimeout(() => {
+    // Count estimated parts first for progress
+    const estParts = Math.ceil(text.length / max);
+    let processed = 0;
+
+    // Do the split (real work)
+    parts = smartSplit(text, max);
+    const total = parts.length;
+
+    // Animate progress proportionally over real part count
+    const step = () => {
+      processed++;
+      pb.style.width = Math.min((processed / total) * 100, 100) + '%';
+      if (processed < total) {
+        requestAnimationFrame(step);
+      } else {
+        setTimeout(() => {
+          pg.classList.remove('show');
+          pb.style.width = '0%';
+          renderParts();
+        }, 200);
+      }
+    };
+    requestAnimationFrame(step);
+  }, 30);
+}
+
+// ─── RENDER (Virtual rendering for large lists) ───────────────────────────────
+const RENDER_BATCH = 20; // render first 20 immediately, rest on scroll
+
+function renderParts() {
+  const grid = document.getElementById('parts');
+  const hdr = document.getElementById('outHdr');
+  grid.innerHTML = '';
+  if (!parts.length) return;
+  hdr.style.display = 'flex';
+  document.getElementById('outTitle').textContent = `মোট ${parts.length}টি পর্বে ভাগ হয়েছে`;
+
+  // Render first batch immediately, rest lazily
+  const renderCard = (i) => {
+    const part = parts[i];
+    const words = part.trim() ? part.trim().split(/\s+/).length : 0;
+    const card = document.createElement('div');
+    card.className = 'part-card';
+    card.style.animationDelay = `${Math.min(i * 0.04, 0.4)}s`;
+
+    const q = document.getElementById('searchInp').value;
+    let displayText = esc(part);
+    if (q && searchActive && q.trim()) {
+      try {
+        // Safe regex escape to prevent crash on special characters
+        const safeQ = q.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
+        const re = new RegExp(safeQ, 'gi');
+        displayText = displayText.replace(re, m => `<mark class="hl">${m}</mark>`);
+      } catch(e) { /* invalid regex — skip highlight */ }
+    }
+
+    card.innerHTML = `
+      <div class="part-head">
+        <div class="part-meta">
+          <span class="pnum">পর্ব ${i+1}</span>
+          <div class="pmeta-text">
+            <span>${fmt(part.length)}</span> ক্যারেক্টার &nbsp;·&nbsp;
+            <span>${fmt(words)}</span> শব্দ &nbsp;·&nbsp;
+            🎙 <span>${voiceTime(part.length)}</span>
+          </div>
+        </div>
+        <div class="pactions">
+          <button class="cbtn" onclick="copyPart(${i},this)">📋 কপি</button>
+          <button class="cbtn" onclick="dlPart(${i},this)">⬇ .txt</button>
+        </div>
+      </div>
+      <div class="part-body">${displayText}</div>
+    `;
+    grid.appendChild(card);
+  };
+
+  // Render first batch
+  const firstBatch = Math.min(RENDER_BATCH, parts.length);
+  for (let i = 0; i < firstBatch; i++) renderCard(i);
+
+  // Render remaining lazily with requestIdleCallback / setTimeout
+  if (parts.length > RENDER_BATCH) {
+    let nextIdx = RENDER_BATCH;
+    const renderNext = () => {
+      const batchEnd = Math.min(nextIdx + 10, parts.length);
+      for (let i = nextIdx; i < batchEnd; i++) renderCard(i);
+      nextIdx = batchEnd;
+      if (nextIdx < parts.length) {
+        setTimeout(renderNext, 16); // ~60fps, doesn't block UI
+      }
+    };
+    setTimeout(renderNext, 50);
+  }
+
+  grid.scrollIntoView({ behavior:'smooth', block:'start' });
+}
+
+// ─── COPY ─────────────────────────────────────────────────────────────────────
+function copyToClipboard(text) {
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    return navigator.clipboard.writeText(text).catch(() => { fbCopy(text); return Promise.resolve(); });
+  }
+  fbCopy(text); return Promise.resolve();
+}
+
+function fbCopy(text) {
+  const ta = document.createElement('textarea');
+  ta.value = text;
+  ta.style.cssText = 'position:fixed;top:0;left:0;opacity:0;pointer-events:none;';
+  document.body.appendChild(ta); ta.focus(); ta.select();
+  try { document.execCommand('copy'); } catch(e) {}
+  document.body.removeChild(ta);
+}
+
+function copyPart(i, btn) {
+  copyToClipboard(parts[i]).then(() => {
+    btn.classList.add('copied'); btn.innerHTML = '✅ কপি হয়েছে!';
+    showToast('✅ পর্ব ' + (i+1) + ' কপি হয়েছে');
+    if (navigator.vibrate) navigator.vibrate(20);
+    setTimeout(() => { btn.classList.remove('copied'); btn.innerHTML = '📋 কপি'; }, 2000);
+  });
+}
+
+function copyAll() {
+  const all = parts.map((p,i) => `===== পর্ব ${i+1} =====\n${p}`).join('\n\n');
+  copyToClipboard(all).then(() => {
+    showToast('✅ সব ' + parts.length + 'টি পর্ব কপি হয়েছে');
+    if (navigator.vibrate) navigator.vibrate(20);
+  });
+}
+
+// ─── DOWNLOAD SINGLE TXT ──────────────────────────────────────────────────────
+function dlPart(i, btn) {
+  triggerDownload(new Blob([parts[i]], { type:'text/plain;charset=utf-8' }), `part-${String(i+1).padStart(2,'0')}.txt`);
+  btn.classList.add('dled'); btn.textContent = '✅ ডাউনলোড';
+  setTimeout(() => { btn.classList.remove('dled'); btn.innerHTML = '⬇ .txt'; }, 2000);
+}
+
+// ─── DOWNLOAD ALL AS REAL ZIP (with CDN fallback) ────────────────────────────
+async function downloadZip() {
+  if (!parts.length) return;
+
+  // Fallback: if JSZip CDN failed, download as combined TXT
+  if (typeof JSZip === 'undefined' || window._jsZipFailed) {
+    showToast('⚠️ JSZip লোড হয়নি — TXT হিসেবে ডাউনলোড হচ্ছে');
+    downloadTxt(); return;
+  }
+
+  showToast('📦 ZIP তৈরি হচ্ছে…');
+  const zip = new JSZip();
+  const folder = zip.folder('script-parts');
+
+  parts.forEach((part, i) => {
+    folder.file(`part-${String(i+1).padStart(2,'0')}.txt`, part);
+  });
+
+  const combined = parts.map((p,i) => `===== পর্ব ${i+1} =====\n${p}`).join('\n\n');
+  zip.file('all-parts-combined.txt', combined);
+
+  try {
+    const blob = await zip.generateAsync(
+      { type:'blob', compression:'DEFLATE', compressionOptions:{ level:6 } },
+      (meta) => {
+        const pb = document.getElementById('progBar');
+        const pg = document.getElementById('prog');
+        pg.classList.add('show');
+        pb.style.width = meta.percent.toFixed(0) + '%';
+      }
+    );
+    document.getElementById('prog').classList.remove('show');
+    triggerDownload(blob, `script-parts-${parts.length}pcs.zip`);
+    showToast('✅ ZIP ডাউনলোড শুরু হয়েছে (' + parts.length + 'টি ফাইল)');
+    if (navigator.vibrate) navigator.vibrate([20,50,20]);
+  } catch(e) {
+    document.getElementById('prog').classList.remove('show');
+    showToast('❌ ZIP তৈরিতে সমস্যা: ' + e.message);
+  }
+}
+
+// ─── DOWNLOAD COMBINED TXT ────────────────────────────────────────────────────
+function downloadTxt() {
+  if (!parts.length) return;
+  const all = parts.map((p,i) => `===== পর্ব ${i+1} =====\n${p}`).join('\n\n');
+  triggerDownload(new Blob([all], { type:'text/plain;charset=utf-8' }), 'script-all-parts.txt');
+  showToast('✅ TXT ডাউনলোড শুরু হয়েছে');
+}
+
+// ─── DOWNLOAD DOCX (pure JS — no server) ─────────────────────────────────────
+// We build a valid .docx manually using the Open XML spec + JSZip
+async function downloadDocx() {
+  if (!parts.length) return;
+  if (typeof JSZip === 'undefined' || window._jsZipFailed) {
+    showToast('⚠️ JSZip লোড হয়নি — DOCX তৈরি করা যাচ্ছে না');
+    return;
+  }
+  showToast('📘 DOCX তৈরি হচ্ছে…');
+
+  // Helper: escape XML characters
+  const xmlEsc = s => s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&apos;');
+
+  // Build body paragraphs
+  const paragraphs = parts.map((part, i) => {
+    // Title paragraph
+    const title = `<w:p><w:pPr><w:pStyle w:val="Heading1"/></w:pPr><w:r><w:t>পর্ব ${i+1}</w:t></w:r></w:p>`;
+    // Content — split by newline, each line = paragraph
+    const lines = part.split('\n').map(line =>
+      `<w:p><w:r><w:rPr><w:rFonts w:ascii="Noto Sans Bengali" w:hAnsi="Noto Sans Bengali"/></w:rPr><w:t xml:space="preserve">${xmlEsc(line)}</w:t></w:r></w:p>`
+    ).join('');
+    const sep = `<w:p><w:r><w:t></w:t></w:r></w:p>`;
+    return title + lines + sep;
+  }).join('');
+
+  const documentXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:document xmlns:wpc="http://schemas.microsoft.com/office/word/2010/wordprocessingCanvas"
+  xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+  xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"
+  xmlns:w14="http://schemas.microsoft.com/office/word/2010/wordml"
+  mc:Ignorable="w14">
+<w:body>
+${paragraphs}
+<w:sectPr><w:pgSz w:w="12240" w:h="15840"/><w:pgMar w:top="1440" w:right="1080" w:bottom="1440" w:left="1080"/></w:sectPr>
+</w:body></w:document>`;
+
+  const relsXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>
+</Relationships>`;
+
+  const stylesXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:styles xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+  <w:style w:type="paragraph" w:styleId="Heading1">
+    <w:name w:val="heading 1"/>
+    <w:rPr><w:b/><w:sz w:val="36"/></w:rPr>
+  </w:style>
+  <w:style w:type="paragraph" w:default="1" w:styleId="Normal">
+    <w:name w:val="Normal"/>
+    <w:rPr><w:sz w:val="24"/></w:rPr>
+  </w:style>
+</w:styles>`;
+
+  const appXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Properties xmlns="http://schemas.openxmlformats.org/officeDocument/2006/extended-properties">
+  <Application>স্ক্রিপ্ট স্প্লিটার v3</Application>
+</Properties>`;
+
+  const coreXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<cp:coreProperties xmlns:cp="http://schemas.openxmlformats.org/package/2006/metadata/core-properties"
+  xmlns:dc="http://purl.org/dc/elements/1.1/">
+  <dc:title>স্ক্রিপ্ট</dc:title>
+  <dc:creator>স্ক্রিপ্ট স্প্লিটার v3</dc:creator>
+</cp:coreProperties>`;
+
+  const contentTypesXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
+  <Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
+  <Default Extension="xml" ContentType="application/xml"/>
+  <Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>
+  <Override PartName="/word/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml"/>
+  <Override PartName="/docProps/app.xml" ContentType="application/vnd.openxmlformats-officedocument.extended-properties+xml"/>
+  <Override PartName="/docProps/core.xml" ContentType="application/vnd.openxmlformats-package.core-properties+xml"/>
+</Types>`;
+
+  const rootRelsXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/>
+  <Relationship Id="rId2" Type="http://schemas.openxmlformats.org/package/2006/relationships/metadata/core-properties" Target="docProps/core.xml"/>
+  <Relationship Id="rId3" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/extended-properties" Target="docProps/app.xml"/>
+</Relationships>`;
+
+  try {
+    const zip = new JSZip();
+    zip.file('[Content_Types].xml', contentTypesXml);
+    zip.file('_rels/.rels', rootRelsXml);
+    zip.file('word/document.xml', documentXml);
+    zip.file('word/styles.xml', stylesXml);
+    zip.file('word/_rels/document.xml.rels', relsXml);
+    zip.file('docProps/app.xml', appXml);
+    zip.file('docProps/core.xml', coreXml);
+
+    const blob = await zip.generateAsync({ type:'blob', mimeType:'application/vnd.openxmlformats-officedocument.wordprocessingml.document' });
+    triggerDownload(blob, 'script-parts.docx');
+    showToast('✅ DOCX ডাউনলোড শুরু হয়েছে');
+    if (navigator.vibrate) navigator.vibrate(20);
+  } catch(e) {
+    showToast('❌ DOCX তৈরিতে সমস্যা: ' + e.message);
+  }
+}
+
+// ─── DOWNLOAD PDF (pure JS via jsPDF) ────────────────────────────────────────
+function downloadPdf() {
+  if (!parts.length) return;
+  if (typeof window.jspdf === 'undefined' || window._jsPdfFailed) {
+    // jsPDF not loaded — fallback: open printable page
+    showToast('⚠️ PDF library লোড হয়নি — Print করে PDF সেভ করো');
+    printAsPdf(); return;
+  }
+
+  showToast('🖨️ PDF তৈরি হচ্ছে…');
+  try {
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF({ orientation:'portrait', unit:'mm', format:'a4' });
+
+    const pageW = doc.internal.pageSize.getWidth();
+    const pageH = doc.internal.pageSize.getHeight();
+    const margin = 15;
+    const maxW = pageW - margin * 2;
+    let y = margin;
+
+    // Title
+    doc.setFontSize(18);
+    doc.setFont('helvetica','bold');
+    doc.text('Script Parts', margin, y);
+    y += 10;
+
+    parts.forEach((part, i) => {
+      // Part heading
+      if (y > pageH - 30) { doc.addPage(); y = margin; }
+      doc.setFontSize(13);
+      doc.setFont('helvetica','bold');
+      doc.text(`Part ${i+1}  [${part.length} chars]`, margin, y);
+      y += 7;
+
+      // Part body — split long text into lines
+      doc.setFontSize(10);
+      doc.setFont('helvetica','normal');
+      const lines = doc.splitTextToSize(part, maxW);
+      lines.forEach(line => {
+        if (y > pageH - margin) { doc.addPage(); y = margin; }
+        doc.text(line, margin, y);
+        y += 5;
+      });
+      y += 6; // gap between parts
+    });
+
+    doc.save('script-parts.pdf');
+    showToast('✅ PDF ডাউনলোড শুরু হয়েছে');
+    if (navigator.vibrate) navigator.vibrate(20);
+  } catch(e) {
+    showToast('❌ PDF তৈরিতে সমস্যা — Print ব্যবহার করো');
+    printAsPdf();
+  }
+}
+
+// PDF fallback: open a printable window
+function printAsPdf() {
+  const html = `<!DOCTYPE html><html><head><meta charset="UTF-8">
+<title>Script Parts</title>
+<style>body{font-family:sans-serif;margin:30px;line-height:1.7}
+h2{border-bottom:1px solid #ccc;padding-bottom:4px;margin-top:28px}
+pre{white-space:pre-wrap;font-family:inherit;font-size:13px}
+@media print{h2{page-break-before:always}h2:first-child{page-break-before:auto}}</style>
+</head><body>
+${parts.map((p,i) => `<h2>পর্ব ${i+1} — ${p.length} ক্যারেক্টার</h2><pre>${p.replace(/</g,'&lt;')}</pre>`).join('')}
+</body></html>`;
+  const w = window.open('','_blank');
+  w.document.write(html);
+  w.document.close();
+  setTimeout(() => w.print(), 400);
+}
+
+// ─── DOWNLOAD MARKDOWN ────────────────────────────────────────────────────────
+function downloadMarkdown() {
+  if (!parts.length) return;
+  const lines = [`# স্ক্রিপ্ট — ${parts.length}টি পর্ব\n\n`];
+  parts.forEach((p, i) => { lines.push(`## পর্ব ${i+1}\n\n${p}\n\n---\n\n`); });
+  triggerDownload(new Blob([lines.join('')], { type:'text/markdown;charset=utf-8' }), 'script-parts.md');
+  showToast('✅ Markdown ডাউনলোড শুরু হয়েছে');
+}
+
+// ─── HELPER: trigger file download ────────────────────────────────────────────
+function triggerDownload(blob, filename) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a'); a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(url), 5000);
+}
+
+// ─── TOAST NOTIFICATION ───────────────────────────────────────────────────────
+let toastTimer = null;
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('show'), 2800);
+}
+
+// ─── THEME ─────────────────────────────────────────────────────────────────────
+function toggleTheme() {
+  isDark = !isDark;
+  document.body.classList.toggle('light', !isDark);
+  document.querySelector('.theme-btn').textContent = isDark ? '🌙' : '☀️';
+  localStorage.setItem('ss_theme', isDark ? 'dark' : 'light');
+}
+
+// ─── KEYBOARD ──────────────────────────────────────────────────────────────────
+document.addEventListener('keydown', e => {
+  if (e.ctrlKey && e.key === 'Enter') { e.preventDefault(); splitScript(); }
+  if (e.ctrlKey && e.key === 'z' && !e.shiftKey) { e.preventDefault(); undoChange(); }
+  if ((e.ctrlKey && e.key === 'y') || (e.ctrlKey && e.shiftKey && e.key === 'Z')) { e.preventDefault(); redoChange(); }
+  if (e.ctrlKey && e.key === 'f') { e.preventDefault(); if (!searchActive) toggleSearch(); }
+});
+
+function esc(t) {
+  return t.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ─── INIT ──────────────────────────────────────────────────────────────────────
+updateStats();
+
+if ("serviceWorker" in navigator) {
+  navigator.serviceWorker.register("sw.js");
+}
+
+</script>
+</body>
+</html>
